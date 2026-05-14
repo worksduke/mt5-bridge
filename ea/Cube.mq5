@@ -7,7 +7,7 @@
 #property strict
 
 //--- 输入参数
-input string   Host              = "127.0.0.1";  // 服务器地址
+input string   Host              = "127.0.0.1";   // 服务器地址
 input int      Port              = 9991;          // 服务器端口
 input int      ReconnectSec      = 5;             // 断线重连间隔(秒)
 
@@ -43,7 +43,7 @@ input int      HistoryCount      = 500;           // 每周期推送历史Bar数
 
 input group "=== 历史Tick ==="
 input bool     EnableHistoryTick = true;          // 连接后推送历史Tick
-input int      HistoryTickCount  = 10000;          // 推送历史Tick数量
+input int      HistoryTickCount  = 10000;         // 推送历史Tick数量
 input string   HistoryTickType   = "ALL";         // Tick类型(ALL/INFO/TRADE)
 
 //+------------------------------------------------------------------+
