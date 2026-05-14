@@ -1,0 +1,83 @@
+# ============================================================================
+# mt5-bridge - Project Configuration
+# ============================================================================
+# Layout:     src layout (src/mt5_bridge/)
+# Python:     3.12+
+# License:    MIT
+# ============================================================================
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ----------------------------------------------------------------------------
+# [project] - PEP 621 standard metadata
+# ----------------------------------------------------------------------------
+[project]
+name = "mt5-bridge"
+description = "Pykka + msgspec event bridge for MetaTrader 5"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "Tonny.Bao", email = "254372664@qq.com" },
+]
+
+# Version is read dynamically from src/mt5_bridge/__init__.py::__version__
+# (single source of truth).
+dynamic = ["version"]
+
+# ---- Runtime dependencies ----
+# MetaTrader5 wheels are Windows-only; the marker keeps `pip install`
+# from failing on non-Windows machines that only want to read message
+# definitions or run the dispatcher in tests.
+dependencies = [
+    "MetaTrader5>=5.0; sys_platform == 'win32'",
+    "pykka>=4.0",
+    "msgspec>=0.21",
+    "structlog>=25.0",
+    # structlog's ConsoleRenderer needs colorama on Windows for ANSI colors.
+    "colorama>=0.4.6; sys_platform == 'win32'",
+]
+
+# ---- Optional dependency groups ----
+# Install via:  pip install -e .[rpc]    (built-in Twisted EA receiver)
+# Install via:  pip install -e .[dev]    (pulls in [rpc] + pytest)
+[project.optional-dependencies]
+rpc = [
+    "twisted>=24.0",
+]
+dev = [
+    "mt5-bridge[rpc]",
+    "pytest>=9.0",
+]
+
+# ----------------------------------------------------------------------------
+# [tool.setuptools] - src layout configuration
+# ----------------------------------------------------------------------------
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+# Whitelist prevents tests/ or any sibling dir from being packaged.
+include = ["mt5_bridge*"]
+
+[tool.setuptools.dynamic]
+# Read __version__ from mt5_bridge/__init__.py at build time.
+version = { attr = "mt5_bridge.__version__" }
+
+# ----------------------------------------------------------------------------
+# [tool.pytest.ini_options] - pytest configuration
+# ----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]

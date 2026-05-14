@@ -1,0 +1,60 @@
+# ===========================================================================
+# mt5-bridge configuration template.
+#
+# Usage:
+#   cp config.example.toml config.toml
+#   # then edit config.toml with your real broker credentials.
+#
+# config.toml is gitignored — only this template is tracked. Never commit
+# the live config.toml (it carries account / password).
+# ===========================================================================
+
+[mt5]
+account        = 0   # MT5 登录账号，0=不登录（让 SDK 复用终端当前账号）
+password       = ""  # MT5 登录密码，留空=不登录
+server         = ""  # MT5 登录服务器，留空=不登录
+mt5_local_path = ""  # MT5 本地安装路径，留空=自动探测
+
+
+[rpc]
+# 启用内置 Twisted RPC 接收。false 时不导入 twisted，
+# 用户须自己解析后通过 bridge.feed_input(msg) 喂入。
+enabled = true
+
+# 每个 EA 接入一个 endpoint（一个 symbol 一个端口）
+[[rpc.endpoints]]
+symbol     = "XAUUSD"
+host       = "127.0.0.1"
+port       = 9991
+delimiter  = "\n"
+max_length = 1048576   # 1 MB / line cap (DoS guard)
+
+
+[retry]
+enabled       = true
+max_attempts  = 3
+base_delay_ms = 100
+max_delay_ms  = 2000
+jitter_ratio  = 0.2    # ±20% 抖动
+# 可重试 retcode 白名单（仅"软失败"）：
+# 10004 REQUOTE / 10006 REJECT / 10012 TIMEOUT /
+# 10020 PRICE_CHANGED / 10021 PRICE_OFF /
+# 10024 TOO_MANY_REQUESTS / 10031 CONNECTION
+# 注意：10026 SERVER_DISABLES_AT 与 10027 CLIENT_DISABLES_AT
+# 是 AutoTrading 被禁用，属于硬错误，绝不能加进来。
+retryable_retcodes = [10004, 10006, 10012, 10020, 10021, 10024, 10031]
+
+
+[watchdog]
+enabled                = true
+tick_timeout_seconds   = 300   # 5 分钟无 Tick 即触发紧急事件
+check_interval_seconds = 5
+symbols                = ["XAUUSD"]   # 空数组 = 监听所有出现过的 symbol
+
+
+[kelly]
+enabled          = true
+default_fraction = 0.5         # half-Kelly（行业常规）
+min_volume       = 0.01
+max_volume       = 10.0
+volume_step      = 0.01        # 取整粒度

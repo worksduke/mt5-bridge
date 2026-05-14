@@ -1,0 +1,176 @@
+# ===========================================================================
+# .gitignore for mt5-bridge package
+# ---------------------------------------------------------------------------
+# Source: cube sibling .gitignore (GitHub Python template + Windows + project rules)
+# Project-specific:
+#   - config.toml (runtime, contains broker credentials — copy from config.example.toml)
+#   - logs/, *.log (structlog file output)
+#   - Cube.ex5 is intentionally TRACKED (compiled EA distributed with the package)
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Python: Byte-compiled / optimized / DLL files
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ---------------------------------------------------------------------------
+# Python: C extensions
+# ---------------------------------------------------------------------------
+*.so
+
+# ---------------------------------------------------------------------------
+# Python: Distribution / packaging
+# ---------------------------------------------------------------------------
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---------------------------------------------------------------------------
+# Python: Installer logs
+# ---------------------------------------------------------------------------
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ---------------------------------------------------------------------------
+# Python: Unit test / coverage reports
+# ---------------------------------------------------------------------------
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# ---------------------------------------------------------------------------
+# Python: Type checkers / linters
+# ---------------------------------------------------------------------------
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# Python: Virtual environments
+# ---------------------------------------------------------------------------
+.env
+.venv
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ---------------------------------------------------------------------------
+# Python: Jupyter Notebook
+# ---------------------------------------------------------------------------
+.ipynb_checkpoints
+
+# ---------------------------------------------------------------------------
+# Python: pyenv
+# ---------------------------------------------------------------------------
+.python-version
+
+# ---------------------------------------------------------------------------
+# IDE: VSCode
+# ---------------------------------------------------------------------------
+.vscode/
+*.code-workspace
+
+# ---------------------------------------------------------------------------
+# IDE: PyCharm / IntelliJ
+# ---------------------------------------------------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ---------------------------------------------------------------------------
+# Editor: Vim / Emacs / Sublime
+# ---------------------------------------------------------------------------
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ---------------------------------------------------------------------------
+# OS: Windows
+# ---------------------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ---------------------------------------------------------------------------
+# OS: macOS
+# ---------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ---------------------------------------------------------------------------
+# OS: Linux
+# ---------------------------------------------------------------------------
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ---------------------------------------------------------------------------
+# Project-specific: Backup files
+# ---------------------------------------------------------------------------
+*.bak
+*.bak_*
+*.tmp
+*.orig
+
+# ---------------------------------------------------------------------------
+# Project-specific: Runtime config (contains broker credentials)
+# ---------------------------------------------------------------------------
+# config.example.toml IS tracked (no credentials — template).
+# config.toml is the live runtime copy; users `cp config.example.toml config.toml`
+# then fill in MT5 account/password. Never commit it.
+config.toml
+
+# ---------------------------------------------------------------------------
+# Project-specific: Logs
+# ---------------------------------------------------------------------------
+logs/
+*.log
+
+# ---------------------------------------------------------------------------
+# Project-specific: NOT ignored (explicit allow for clarity)
+# ---------------------------------------------------------------------------
+# ea/Cube.ex5 is intentionally tracked — compiled EA is part of the release
+# artifact so users don't need MetaEditor on every install. Do NOT add *.ex5
+# to the ignore list.
