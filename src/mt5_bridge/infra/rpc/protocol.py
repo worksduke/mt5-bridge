@@ -155,7 +155,12 @@ class EAFactory(protocol.Factory):
         self.cfg = cfg
         self.dispatcher_ref = dispatcher_ref
 
-    def buildProtocol(self, addr: object) -> EAProtocol:
+    # NOTE: Twisted's stubs declare a private ``_ProtoWithFactory | None``
+    # return type that we can't reference by name. Returning EAProtocol
+    # (a Protocol subclass with a ``factory`` attribute) satisfies the
+    # structural contract — this ``ignore[override]`` is the standard
+    # pattern for Factory subclasses.
+    def buildProtocol(self, addr: object) -> EAProtocol:  # type: ignore[override]
         p = EAProtocol()
         p.factory = self
         return p
