@@ -23,6 +23,9 @@ class EventType(IntEnum):
     ORDER_CANCELED    = 23
 
 
+    BAR_CLOSED        = 31    # K 线收线（live 收线 + history 回放）
+
+
 class TradeState(IntEnum):
     """内部交易订单状态"""
 

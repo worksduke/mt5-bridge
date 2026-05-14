@@ -16,14 +16,34 @@ import pykka
 import pytest
 
 from mt5_bridge.actors.dispatcher import Dispatcher
-from mt5_bridge.contracts.ea_messages import Account, Order, Position, Tick
+from mt5_bridge.contracts.ea_messages import (
+    Account,
+    Bar,
+    HistoryBar,
+    Order,
+    Position,
+    Tick,
+)
+from mt5_bridge.contracts.ea_messages import (
+    OrderRemoved as OrderRemovedSignal,
+)
+from mt5_bridge.contracts.ea_messages import (
+    PositionClosed as PositionClosedSignal,
+)
 from mt5_bridge.contracts.enums import EventType
 from mt5_bridge.contracts.output_events import (
+    BarClosed,
     EmergencyTickStale,
     OrderModified,
     OrderPlaced,
     PositionModified,
     PositionOpened,
+)
+from mt5_bridge.contracts.output_events import (
+    OrderCanceled as OrderCanceledEvent,
+)
+from mt5_bridge.contracts.output_events import (
+    PositionClosed as PositionClosedEvent,
 )
 
 
@@ -235,12 +255,6 @@ def test_trade_state_changed_is_broadcast(dispatcher):
 # =============================================================================
 # Close / removal detection (position_closed / order_removed wire signals)
 # =============================================================================
-from mt5_bridge.contracts.ea_messages import (
-    OrderRemoved as OrderRemovedSignal,
-    PositionClosed as PositionClosedSignal,
-)
-from mt5_bridge.contracts.output_events import OrderCanceled as OrderCanceledEvent
-from mt5_bridge.contracts.output_events import PositionClosed as PositionClosedEvent
 
 
 def _pos(ticket=1, symbol="X", sl=0.0, tp=0.0, magic=0, comment=""):
@@ -410,3 +424,100 @@ def test_dead_kelly_does_not_crash_dispatcher(dispatcher):
 
     _wait_for(lambda: len(received) == 1)
     assert dispatcher.is_alive()
+
+
+# =============================================================================
+# Bar / HistoryBar → BarClosed (v0.2)
+# =============================================================================
+
+def _bar(symbol="X", role="execution", tf="M5", time="2026.05.14 09:00:00",
+         time_msc=1747213200000, is_closed=True,
+         open_=100.0, high=101.0, low=99.0, close=100.5, vol=42):
+    return Bar(symbol=symbol, role=role, tf_period=tf, time=time, time_msc=time_msc,
+               is_closed=is_closed, open=open_, high=high, low=low, close=close, volume=vol)
+
+
+def _hbar(symbol="X", role="execution", tf="M5", time="2026.05.14 08:55:00",
+          time_msc=1747212900000,
+          open_=99.0, high=100.0, low=98.5, close=99.5, vol=30):
+    return HistoryBar(symbol=symbol, role=role, tf_period=tf, time=time, time_msc=time_msc,
+                      is_closed=True, open=open_, high=high, low=low, close=close, volume=vol)
+
+
+def test_closed_bar_emits_bar_closed_event(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(BarClosed, received.append).get()
+
+    dispatcher.tell(_bar(is_closed=True, open_=100.0, close=100.5))
+
+    _wait_for(lambda: len(received) == 1)
+    evt = received[0]
+    assert evt.symbol == "X"
+    assert evt.role == "execution"
+    assert evt.tf_period == "M5"
+    assert evt.open == 100.0
+    assert evt.close == 100.5
+    assert evt.is_history is False
+    assert evt.type == EventType.BAR_CLOSED
+
+
+def test_unclosed_bar_does_not_emit_bar_closed(dispatcher):
+    received: list = []
+    raw_bars: list = []
+    dispatcher.proxy().register_callback(BarClosed, received.append).get()
+    dispatcher.proxy().register_callback(Bar, raw_bars.append).get()
+
+    dispatcher.tell(_bar(is_closed=False))
+
+    # Raw Bar still passes through; BarClosed must not fire
+    _wait_for(lambda: len(raw_bars) == 1)
+    time.sleep(0.05)
+    assert len(received) == 0
+
+
+def test_history_bar_emits_bar_closed_with_is_history_true(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(BarClosed, received.append).get()
+
+    dispatcher.tell(_hbar())
+
+    _wait_for(lambda: len(received) == 1)
+    assert received[0].is_history is True
+    assert received[0].type == EventType.BAR_CLOSED
+
+
+def test_bar_closed_subscribe_by_event_type(dispatcher):
+    """Users can subscribe with the EventType enum value, not just the class."""
+    received: list = []
+    dispatcher.proxy().register_callback(EventType.BAR_CLOSED, received.append).get()
+
+    dispatcher.tell(_bar(is_closed=True))
+    dispatcher.tell(_hbar())
+
+    _wait_for(lambda: len(received) == 2)
+
+
+def test_closed_bar_pushed_twice_emits_twice(dispatcher):
+    """Dispatcher does NOT dedupe BarClosed — EA already emits closed bars
+    only once per finalization, so any duplicates the dispatcher sees are
+    intentional (tests, manual replay) and should pass through."""
+    received: list = []
+    dispatcher.proxy().register_callback(BarClosed, received.append).get()
+
+    b = _bar(is_closed=True)
+    dispatcher.tell(b)
+    dispatcher.tell(b)
+
+    _wait_for(lambda: len(received) == 2)
+
+
+def test_raw_bar_subscribe_still_works(dispatcher):
+    """Backward compat: subscribe(Bar, cb) still gets both closed AND unclosed."""
+    raw: list = []
+    dispatcher.proxy().register_callback(Bar, raw.append).get()
+
+    dispatcher.tell(_bar(is_closed=True))
+    dispatcher.tell(_bar(is_closed=False))
+
+    _wait_for(lambda: len(raw) == 2)
+    assert {b.is_closed for b in raw} == {True, False}

@@ -16,7 +16,6 @@ from mt5_bridge.contracts.ea_messages import Account, Position, Tick
 from mt5_bridge.contracts.enums import EventType
 from mt5_bridge.contracts.output_events import (
     EmergencyTickStale,
-    PositionOpened,
 )
 from mt5_bridge.facade import MT5Bridge
 
@@ -165,6 +164,7 @@ def test_watchdog_emergency_event_fires(rpc_off_kelly_on_config):
 def test_kelly_property_works(rpc_off_kelly_on_config, monkeypatch):
     """Kelly suggest_volume should work after Account is fed."""
     from types import SimpleNamespace
+
     from mt5_bridge.infra import mt5_client as mc_mod
     monkeypatch.setattr(mc_mod.MT5Client, "symbol_info",
                         lambda self, symbol: SimpleNamespace(
@@ -208,8 +208,9 @@ def test_feed_input_before_start_raises(no_rpc_config):
 
 
 def test_command_before_start_raises(no_rpc_config):
-    from mt5_bridge.contracts.trade_commands import OpenPosition
     import MetaTrader5 as mt5
+
+    from mt5_bridge.contracts.trade_commands import OpenPosition
     bridge = MT5Bridge(no_rpc_config)
     with pytest.raises(RuntimeError):
         bridge.open_position(OpenPosition(symbol="X", volume=0.1,

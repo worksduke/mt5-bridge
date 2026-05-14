@@ -18,23 +18,29 @@ import pykka
 
 from mt5_bridge.contracts.ea_messages import (
     Account,
+    Bar,
     Connected,
+    HistoryBar,
     HistoryTick,
     Order,
     Position,
     Tick,
 )
+
 # Aliased imports avoid name collision with the public OutputEvents
 # of the same name. PositionClosedSignal / OrderRemovedSignal are
 # the raw EA wire messages; PositionClosed / OrderCanceled below are
 # the user-facing OutputEvents the dispatcher emits in response.
 from mt5_bridge.contracts.ea_messages import (
     OrderRemoved as OrderRemovedSignal,
+)
+from mt5_bridge.contracts.ea_messages import (
     PositionClosed as PositionClosedSignal,
 )
 from mt5_bridge.contracts.enums import EventType
 from mt5_bridge.contracts.internal_messages import TradeStateChanged
 from mt5_bridge.contracts.output_events import (
+    BarClosed,
     EmergencyTickStale,
     OrderCanceled,
     OrderModified,
@@ -149,8 +155,24 @@ class Dispatcher(pykka.ThreadingActor):
             self._broadcast(message)
             return
 
-        # Bar / HistoryBar / *Done and anything else: pass through
-        # for whoever subscribes by type, no state machine.
+        if isinstance(message, Bar):
+            # Raw broadcast first (preserves subscribe(Bar, cb) semantics for
+            # users who want both closed + in-progress). Only emit BarClosed
+            # for is_closed=True so subscribers of EventType.BAR_CLOSED get
+            # exactly one event per finalized bar.
+            self._broadcast(message)
+            if message.is_closed:
+                self._emit_bar_closed(message, is_history=False)
+            return
+
+        if isinstance(message, HistoryBar):
+            # History bars are always closed by definition (replayed from
+            # the broker's bar archive).
+            self._broadcast(message)
+            self._emit_bar_closed(message, is_history=True)
+            return
+
+        # *Done markers and anything else: pass through unchanged.
         self._broadcast(message)
 
     # ── position / order state machine ────────────────────────
@@ -226,6 +248,22 @@ class Dispatcher(pykka.ThreadingActor):
             event_time_ms = _now_ms(),
         ))
 
+    def _emit_bar_closed(self, bar: Bar | HistoryBar, *, is_history: bool) -> None:
+        self._broadcast(BarClosed(
+            symbol        = bar.symbol,
+            role          = bar.role,
+            tf_period     = bar.tf_period,
+            time          = bar.time,
+            time_msc      = bar.time_msc,
+            open          = bar.open,
+            high          = bar.high,
+            low           = bar.low,
+            close         = bar.close,
+            volume        = bar.volume,
+            is_history    = is_history,
+            event_time_ms = _now_ms(),
+        ))
+
     def _handle_order_removed(self, m: OrderRemovedSignal) -> None:
         self._known_orders.pop(m.ticket, None)
         self._broadcast(OrderCanceled(
@@ -250,6 +288,7 @@ class Dispatcher(pykka.ThreadingActor):
         # 2) by EventType enum value (only present on OutputEvent business types)
         evt_type_field = getattr(evt, "type", None)
         if isinstance(evt_type_field, int):
+            key: EventType | int
             try:
                 key = EventType(evt_type_field)
             except ValueError:

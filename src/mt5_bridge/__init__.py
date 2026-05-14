@@ -2,7 +2,7 @@
 
 # Single source of truth for the package version. pyproject.toml reads this
 # via ``[tool.setuptools.dynamic] version = { attr = "mt5_bridge.__version__" }``.
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from mt5_bridge.contracts.ea_messages import (
     DECODER,
@@ -20,6 +20,7 @@ from mt5_bridge.contracts.ea_messages import (
 )
 from mt5_bridge.contracts.enums import EventType, Side, TradeState
 from mt5_bridge.contracts.output_events import (
+    BarClosed,
     EmergencyTickStale,
     OrderCanceled,
     OrderModified,
@@ -60,6 +61,7 @@ __all__ = [
     "Side",
     "TradeState",
     # output_events
+    "BarClosed",
     "EmergencyTickStale",
     "OrderCanceled",
     "OrderModified",

@@ -14,7 +14,7 @@ Both let the Executor schedule a retry without blocking its mailbox.
 from __future__ import annotations
 
 import threading
-from typing import Callable, Protocol
+from typing import Any, Callable, Protocol
 
 
 class Scheduler(Protocol):
@@ -32,10 +32,15 @@ class ReactorScheduler:
 
     ``callFromThread`` is required because ``callLater`` itself is NOT
     thread-safe — it must be invoked on the reactor thread.
+
+    The reactor parameter is typed ``Any`` because Twisted is a lazy
+    import (only imported when the bridge's [rpc] section is enabled);
+    we can't reference its concrete protocol type without forcing the
+    import.
     """
 
-    def __init__(self, reactor: object) -> None:
-        self._reactor = reactor
+    def __init__(self, reactor: Any) -> None:
+        self._reactor: Any = reactor
 
     def schedule(self, delay_seconds: float, fn: Callable[[], None]) -> None:
         self._reactor.callFromThread(self._reactor.callLater, delay_seconds, fn)

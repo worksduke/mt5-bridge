@@ -50,7 +50,14 @@ rpc = [
 dev = [
     "mt5-bridge[rpc]",
     "pytest>=9.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.13",
+    "mypy>=1.18",
 ]
+
+# Console scripts. After `pip install -e .`, `mt5-bridge` is on PATH.
+[project.scripts]
+mt5-bridge = "mt5_bridge.__main__:main"
 
 # ----------------------------------------------------------------------------
 # [tool.setuptools] - src layout configuration
@@ -81,3 +88,33 @@ addopts = [
     "--strict-markers",
     "--tb=short",
 ]
+
+# ----------------------------------------------------------------------------
+# [tool.ruff] - linter + formatter
+# ----------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+# Starter selection: pycodestyle errors+warnings, pyflakes, isort.
+# Future: add UP (pyupgrade), B (bugbear), SIM (simplify) when ready.
+select = ["E", "W", "F", "I"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can have long lines (multi-line msgspec.Struct constructors etc.)
+"tests/*" = ["E501"]
+# Two src files have intentional long lines for readability:
+#   - executor.py: aligned _STATE_TABLE dict (one row per command type)
+#   - trade_commands.py: error messages enumerating MT5 constants
+"src/mt5_bridge/actors/executor.py" = ["E501"]
+"src/mt5_bridge/contracts/trade_commands.py" = ["E501"]
+
+# ----------------------------------------------------------------------------
+# [tool.mypy] - type checker
+# ----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+# MetaTrader5 / pykka / twisted have no public type stubs.
+ignore_missing_imports = true

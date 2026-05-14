@@ -105,7 +105,34 @@ class EmergencyTickStale(msgspec.Struct, frozen=True, gc=False):
     detected_at_ms:    int
 
 
+class BarClosed(msgspec.Struct, frozen=True, gc=False):
+    """A K-line just finalized. Fires once per closed bar.
+
+    Triggered by:
+        - Live ``Bar`` with ``is_closed=True`` (EA pushes once when next bar starts)
+        - ``HistoryBar`` from cold-start backfill (always closed; ``is_history=True``)
+
+    Live Bars with ``is_closed=False`` (in-progress updates) do NOT trigger
+    this event — subscribe to the raw ``Bar`` class for those.
+    """
+
+    symbol:        str
+    role:          str         # "execution" / "tactical" / "strategic"
+    tf_period:     str         # "M5" / "H1" / "D1" 等
+    time:          str         # broker-local "YYYY.MM.DD HH:MM:SS"
+    time_msc:      int         # broker-local epoch ms
+    open:          float
+    high:          float
+    low:           float
+    close:         float
+    volume:        int
+    is_history:    bool        # True = from history backfill, False = live close
+    event_time_ms: int         # bridge-side detection wall-clock
+    type:          int = EventType.BAR_CLOSED
+
+
 __all__ = [
+    "BarClosed",
     "EmergencyTickStale",
     "OrderCanceled",
     "OrderModified",

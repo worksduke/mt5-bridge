@@ -14,6 +14,60 @@ _`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`._
 
 ---
 
+## [0.2.0] - 2026-05-14
+
+Engineering polish + workflow upgrades. Pure additions on top of v0.1.0
+(no breaking changes to public API).
+
+### Added
+
+- **`mt5-bridge` CLI** (`src/mt5_bridge/__main__.py`, `[project.scripts]` entry).
+  `mt5-bridge --version` prints the package version. `mt5-bridge run --config
+  config.toml` starts the bridge with a default printer subscribed to every
+  event type, equivalent to (but more concise than) `examples/run_bridge.py`.
+- **`BarClosed` OutputEvent** + **`EventType.BAR_CLOSED = 31`**. Dispatcher
+  now emits a typed event whenever a `Bar(is_closed=True)` or `HistoryBar`
+  arrives, with `is_history` flag distinguishing live vs back-fill. Raw
+  `Bar` / `HistoryBar` subscriptions still work (additive).
+- **GitHub Actions CI** (`.github/workflows/ci.yml`). Runs ruff + mypy +
+  pytest on every push / PR to master, on `windows-latest` (the only
+  platform `MetaTrader5` ships wheels for).
+- **ruff + mypy configuration** in `pyproject.toml` (`[tool.ruff]`,
+  `[tool.ruff.lint]`, `[tool.mypy]`). Ruff selection: `E`, `W`, `F`, `I`
+  (errors, warnings, pyflakes, isort). Line length 120 with per-file
+  exemptions for `executor.py` and `trade_commands.py` (intentional
+  aligned tables / long error messages).
+- **Multi-symbol regression suite** (`tests/test_multi_symbol.py`):
+  per-ticket state isolation, close-one-symbol-affects-only-one,
+  per-symbol watchdog stale, executor stale set per symbol.
+- **6 new BarClosed tests** in `tests/test_dispatcher_state_machine.py`.
+
+### Changed
+
+- `[project.optional-dependencies] dev` now pulls `ruff>=0.13`,
+  `mypy>=1.18`, `pytest-cov>=6.0` in addition to `pytest`.
+- `pyproject.toml` console script entry registers `mt5-bridge` on PATH
+  after editable install.
+
+### Fixed
+
+- 14 ruff warnings cleared (9 × F541 f-string-no-placeholder, 3 × E402
+  module-import-not-at-top, 2 × F401 unused-import).
+- 3 mypy errors cleared:
+  - `infra/scheduler.py` `ReactorScheduler._reactor` typed as `Any`
+    (Twisted is lazy-imported, no static type available without forcing
+    the import).
+  - `actors/dispatcher.py` `_broadcast` `key` annotated as `EventType | int`
+    so the `EventType(...)` → fallback `int` branch type-checks.
+
+### Quality
+
+- **93 / 93 tests passing** (was 82 in v0.1.0; +6 BarClosed +5 multi-symbol).
+- **`ruff check src/ tests/ examples/`** clean.
+- **`mypy src/mt5_bridge/`** clean (26 source files, 0 errors).
+
+---
+
 ## [0.1.0] - 2026-05-14
 
 Initial public release. End-to-end event-driven bridge for MetaTrader 5
@@ -108,5 +162,6 @@ Version comparison links.
 Populate the URLs once a remote (e.g. GitHub) is configured.
 -->
 
-[Unreleased]: about:blank
-[0.1.0]: about:blank
+[Unreleased]: https://github.com/worksduke/mt5-bridge/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/worksduke/mt5-bridge/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/worksduke/mt5-bridge/releases/tag/v0.1.0

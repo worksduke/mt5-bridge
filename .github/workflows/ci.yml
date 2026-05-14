@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    # MetaTrader5 wheel is Windows-only and trade_commands/mt5_client import it
+    # at module top, so even mocked tests can't be collected on Linux. Run on
+    # Windows for now; revisit when MetaTrader5 imports are made conditional.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package + dev extras
+        run: pip install -e .[dev]
+
+      - name: Ruff (lint + isort)
+        run: ruff check src/ tests/ examples/
+
+      - name: Mypy (type check)
+        run: mypy src/mt5_bridge/
+
+      - name: Pytest
+        run: pytest -v --tb=short

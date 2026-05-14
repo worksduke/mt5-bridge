@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import tomllib
-import msgspec
 from pathlib import Path
+
+import msgspec
 
 
 class MT5Config(msgspec.Struct, frozen=True, gc=False):

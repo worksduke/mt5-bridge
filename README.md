@@ -3,10 +3,11 @@
 > 事件驱动的 **MetaTrader 5** 桥接包 —— 把 MT5 终端的实时行情 / 账户 / 持仓 / 挂单事件
 > 通过 pykka actor 模型派发给 Python 订阅者，命令侧 fire-and-forget。
 
+[![CI](https://github.com/worksduke/mt5-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/worksduke/mt5-bridge/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Status](https://img.shields.io/badge/status-v0.1.0-orange)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-82%20passed-brightgreen)](#测试)
+[![Status](https://img.shields.io/badge/status-v0.2.0-orange)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-93%20passed-brightgreen)](#测试)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](#)
 
 ## 特点
@@ -76,6 +77,13 @@ cp config.example.toml config.toml
 
 ### 3. 跑 bridge
 
+**最快路径——CLI**（v0.2 起）：
+```bash
+mt5-bridge run --config config.toml
+```
+启动后会订阅所有事件类型，每个事件打印一行到 stdout，方便快速验证。
+
+**或自己写代码**：
 ```python
 from mt5_bridge import MT5Bridge, EventType, Tick, OpenPosition
 import MetaTrader5 as mt5
@@ -83,6 +91,7 @@ import MetaTrader5 as mt5
 bridge = MT5Bridge("config.toml")
 bridge.subscribe(EventType.POSITION_OPENED, lambda e: print(f"opened {e.ticket}"))
 bridge.subscribe(EventType.POSITION_CLOSED, lambda e: print(f"closed {e.ticket} profit={e.profit}"))
+bridge.subscribe(EventType.BAR_CLOSED, lambda b: print(f"bar closed {b.symbol}/{b.tf_period} C={b.close}"))
 bridge.subscribe(Tick, lambda t: ...)
 
 bridge.start_io()
@@ -137,6 +146,7 @@ while True:
 | `OrderPlaced`     | `21` ORDER_PLACED      | `ticket, symbol, order_type, volume, open_price, sl, tp, event_time_ms` |
 | `OrderModified`   | `22` ORDER_MODIFIED    | `ticket, symbol, open_price, sl, tp, event_time_ms` |
 | `OrderCanceled`   | `23` ORDER_CANCELED    | `ticket, symbol, order_type, volume, open_price, sl, tp, magic, reason, removed_time_ms, event_time_ms` |
+| `BarClosed`       | `31` BAR_CLOSED        | `symbol, role, tf_period, time, time_msc, open, high, low, close, volume, is_history, event_time_ms` |
 | `EmergencyTickStale` | —                   | `symbol, last_tick_time_ms, silence_seconds, detected_at_ms` |
 
 `event_time_ms` 是 bridge 检测时间；`close_time_ms` / `removed_time_ms` 是 broker 端真实成交 / 撤单时间。`reason` ∈ `{canceled, filled, expired, unknown}`。
@@ -208,7 +218,7 @@ pip install -e .[dev]
 pytest
 ```
 
-82 个测试覆盖：dispatcher 状态机（含 close detection + dead-actor race）、executor 重试 + stale 拒单、watchdog 心跳、Kelly 公式 + 边界、RPC 协议解码、facade 端到端（rpc on/off）、ea_messages DECODER round-trip、MT5Client preflight 失败模式、trade_commands 校验回归。
+93 个测试覆盖：dispatcher 状态机（含 close detection、dead-actor race、BarClosed）、executor 重试 + stale 拒单、watchdog 心跳、Kelly 公式 + 边界、RPC 协议解码、facade 端到端（rpc on/off）、ea_messages DECODER round-trip、MT5Client preflight 失败模式、trade_commands 校验回归、多 symbol 状态隔离。
 
 ## 故障排查
 

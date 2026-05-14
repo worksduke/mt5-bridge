@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
 import MetaTrader5 as mt5
 import msgspec
-from typing import Any
 
 
 class OpenPosition(msgspec.Struct, frozen=True, gc=False):
@@ -39,7 +40,7 @@ class OpenPosition(msgspec.Struct, frozen=True, gc=False):
     price:        float
     sl:           float
     tp:           float
-    
+
     action:       int = mt5.TRADE_ACTION_DEAL
     deviation:    int = 20
     magic:        int = 0
@@ -72,16 +73,16 @@ class OpenPosition(msgspec.Struct, frozen=True, gc=False):
 
         if self.sl > 0:
             req["sl"] = self.sl
-        
+
         if self.tp > 0:
             req["tp"] = self.tp
-        
+
         return req
 
 
     def validate(self) -> None:
         """内部检查函数，校验失败时抛出 ValueError
-        
+
         Raises:
             ValueError: 任何字段不合法时抛出
         """
@@ -163,7 +164,7 @@ class OpenPosition(msgspec.Struct, frozen=True, gc=False):
                 f"当前值: {self.type_time!r}"
             )
 
-    
+
     def is_valid(self) -> bool:
         try:
             self.validate()
@@ -217,7 +218,7 @@ class ClosePosition(msgspec.Struct, frozen=True, gc=False):
         """内部检查函数，校验失败时抛出 ValueError
         """
         if not self.symbol:
-            raise ValueError(f"symbol 不能为空")
+            raise ValueError("symbol 不能为空")
 
         if self.volume <= 0:
             raise ValueError(f"volume 必须大于 0，当前: {self.volume}")
@@ -236,10 +237,10 @@ class ClosePosition(msgspec.Struct, frozen=True, gc=False):
             )
 
         if self.deviation < 0:
-            raise ValueError(f"deviation 不能为负")
-        
+            raise ValueError("deviation 不能为负")
+
         if self.magic < 0:
-            raise ValueError(f"magic 不能为负")
+            raise ValueError("magic 不能为负")
 
         if self.type_filling not in (
             mt5.ORDER_FILLING_FOK,
@@ -289,7 +290,7 @@ class ClosePosition(msgspec.Struct, frozen=True, gc=False):
 
         if self.price > 0:
             req["price"] = self.price
-        
+
         return req
 
 
@@ -329,25 +330,25 @@ class ModifyPosition(msgspec.Struct, frozen=True, gc=False):
     def validate(self) -> None:
         if not self.symbol:
             raise ValueError("symbol 不能为空")
-        
+
         if self.position <= 0:
             raise ValueError(
                 f"position(持仓 ticket) 必须 > 0，当前: {self.position}"
             )
-        
+
         if self.sl < 0:
             raise ValueError(f"sl 不能为负，当前: {self.sl}")
-        
+
         if self.tp < 0:
             raise ValueError(f"tp 不能为负，当前: {self.tp}")
-        
+
         # 至少要修改一项
         if self.sl == 0 and self.tp == 0:
             raise ValueError("sl 和 tp 不能同时为 0，否则修改无意义")
-        
+
         if self.magic < 0:
-            raise ValueError(f"magic 不能为负")
-    
+            raise ValueError("magic 不能为负")
+
     def is_valid(self) -> bool:
         try:
             self.validate()
@@ -359,7 +360,7 @@ class ModifyPosition(msgspec.Struct, frozen=True, gc=False):
     def to_mt5_request(self) -> dict[str, Any]:
         """转换为 MT5 修改请求字典"""
         self.validate()
-        
+
         req: dict[str, Any] = {
             "action":   self.action,
             "symbol":   self.symbol,
@@ -367,13 +368,13 @@ class ModifyPosition(msgspec.Struct, frozen=True, gc=False):
             "magic":    self.magic,
             "comment":  self.comment,
         }
-        
+
         # 只发送非 0 的字段（0 在 MT5 中表示取消该止损/止盈）
         # 注意：如果用户明确要"取消"止损/止盈，需要传 0
         # 这里我们总是传，让 MT5 自己处理
         req["sl"] = self.sl
         req["tp"] = self.tp
-        
+
         return req
 
 
@@ -407,7 +408,7 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
         - comment:      默认 ""
         - type_time:    默认 mt5.ORDER_TIME_GTC
         - type_filling: 默认 mt5.ORDER_FILLING_IOC
-    
+
     内建方法：
         - to_mt5_request: 转换为 mt5 请求字典
         - validate:     校验字段是否合法
@@ -433,18 +434,18 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
     deviation:    int = 20
     type_time:    int = mt5.ORDER_TIME_GTC          # GTC = 撤单前一直有效
     type_filling: int = mt5.ORDER_FILLING_RETURN    # 挂单官方推荐 RETURN
-    
-    
+
+
 
     def validate(self) -> None:
         # 1. symbol
         if not self.symbol:
             raise ValueError("symbol 不能为空")
-        
+
         # 2. volume
         if self.volume <= 0:
             raise ValueError(f"volume 必须大于 0，当前: {self.volume}")
-        
+
         # 3. type
         if self.type not in (
             mt5.ORDER_TYPE_BUY_LIMIT,
@@ -458,24 +459,24 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
                 f"挂单 type 必须是 {sorted((mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_BUY_STOP, mt5.ORDER_TYPE_SELL_STOP, mt5.ORDER_TYPE_BUY_STOP_LIMIT, mt5.ORDER_TYPE_SELL_STOP_LIMIT))} 之一，"
                 f"当前: {self.type!r}"
             )
-        
+
         # 4. price 挂单必填
         if self.price <= 0:
             raise ValueError(f"挂单 price 必须 > 0，当前: {self.price}")
-        
+
         # 5. STOP_LIMIT 类型必须填 stoplimit
         if self.type in (mt5.ORDER_TYPE_BUY_STOP_LIMIT, mt5.ORDER_TYPE_SELL_STOP_LIMIT):
             if self.stoplimit <= 0:
                 raise ValueError(
                     f"{self.type} 必须指定 stoplimit > 0，当前: {self.stoplimit}"
                 )
-        
+
         # 6. sl/tp 不能为负
         if self.sl < 0:
             raise ValueError(f"sl 不能为负，当前: {self.sl}")
         if self.tp < 0:
             raise ValueError(f"tp 不能为负，当前: {self.tp}")
-        
+
         # 7. SL/TP 与方向的合理性
         if self.type in (mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP, mt5.ORDER_TYPE_BUY_STOP_LIMIT):
             if self.sl > 0 and self.sl >= self.price:
@@ -495,15 +496,15 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
                 raise ValueError(
                     f"SELL 挂单的 tp({self.tp}) 必须 < price({self.price})"
                 )
-        
+
         # 8. deviation
         if self.deviation < 0:
-            raise ValueError(f"deviation 不能为负")
-        
+            raise ValueError("deviation 不能为负")
+
         # 9. magic
         if self.magic < 0:
-            raise ValueError(f"magic 不能为负")
-        
+            raise ValueError("magic 不能为负")
+
         # 10. type_filling / type_time
         if self.type_filling not in (
             mt5.ORDER_FILLING_IOC,
@@ -522,7 +523,7 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(
                 f"type_time 必须是 {sorted((mt5.ORDER_TIME_GTC, mt5.ORDER_TIME_DAY, mt5.ORDER_TIME_SPECIFIED, mt5.ORDER_TIME_SPECIFIED_DAY))} 之一"
             )
-        
+
         # 11. expiration
         if self.expiration < 0:
             raise ValueError(f"expiration 不能为负，当前: {self.expiration}")
@@ -534,8 +535,8 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(
                 f"type_time={self.type_time} 时必须指定 expiration > 0"
             )
-    
-    
+
+
     def is_valid(self) -> bool:
         try:
             self.validate()
@@ -543,11 +544,11 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
         except ValueError:
             return False
 
-    
+
     def to_mt5_request(self) -> dict[str, Any]:
         """转换为 MT5 挂单请求字典"""
         self.validate()
-        
+
         req: dict[str, Any] = {
             "action":       self.action,
             "symbol":       self.symbol,
@@ -560,7 +561,7 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
             "type_time":    self.type_time,
             "type_filling": self.type_filling,
         }
-        
+
         # 可选字段，0 时不发送
         if self.sl > 0:
             req["sl"] = self.sl
@@ -570,13 +571,13 @@ class OpenOrder(msgspec.Struct, frozen=True, gc=False):
             req["stoplimit"] = self.stoplimit
         if self.expiration > 0:
             req["expiration"] = self.expiration
-        
+
         return req
 
-    
+
 class CancelOrder(msgspec.Struct, frozen=True, gc=False):
     """撤销挂单指令
-    
+
     必填：
         - order: 挂单 ticket
 
@@ -588,19 +589,19 @@ class CancelOrder(msgspec.Struct, frozen=True, gc=False):
         - to_mt5_request: 转换为 mt5 请求字典
         - validate:     校验字段是否合法
         - is_valid:     校验字段是否合法
-    
+
     便捷构造方法：
         - from_order:   从已有挂单对象构造撤单指令
         - from_ticket:  从 ticket 直接构造撤单指令
     """
-    
+
     # === 必填字段 ===
     order: int
-    
+
     # === 可选字段 ===
     comment: str = ""
     magic:   int = 0
-    
+
     # === 写死字段 ===
     action: int = mt5.TRADE_ACTION_REMOVE
 
@@ -610,29 +611,29 @@ class CancelOrder(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(
                 f"order(挂单 ticket) 必须 > 0，当前: {self.order}"
             )
-        
+
         if self.magic < 0:
-            raise ValueError(f"magic 不能为负")
-    
+            raise ValueError("magic 不能为负")
+
     def is_valid(self) -> bool:
         try:
             self.validate()
             return True
         except ValueError:
             return False
-    
-    
+
+
     def to_mt5_request(self) -> dict[str, Any]:
         """转换为 MT5 撤单请求字典"""
         self.validate()
-        
+
         return {
             "action":  self.action,
             "order":   self.order,
             "comment": self.comment,
             "magic":   self.magic,
         }
-    
+
     # ---------- 便捷构造 ----------
     @classmethod
     def from_order(
@@ -646,7 +647,7 @@ class CancelOrder(msgspec.Struct, frozen=True, gc=False):
             magic=order.magic,
             comment=comment,
         )
-    
+
     @classmethod
     def from_ticket(
         cls,
@@ -659,7 +660,7 @@ class CancelOrder(msgspec.Struct, frozen=True, gc=False):
 
 class ModifyOrder(msgspec.Struct, frozen=True, gc=False):
     """修改挂单（价格、SL/TP、过期时间）
-    
+
     对应 MT5 官方请求:
     request = {
         "action":       mt5.TRADE_ACTION_MODIFY,
@@ -671,43 +672,43 @@ class ModifyOrder(msgspec.Struct, frozen=True, gc=False):
         "type_filling": mt5.ORDER_FILLING_RETURN,
     }
     """
-    
+
     # === 必填字段 ===
     order: int             # 要修改的挂单 ticket
     price: float           # 新的挂单价格（修改挂单时必填）
-    
+
     # === 可选字段 ===
     sl: float = 0.0
     tp: float = 0.0
-    
+
     # === 业务字段 ===
     magic:   int = 0
     comment: str = ""
-    
+
     # === 写死字段 ===
     action:       int = mt5.TRADE_ACTION_MODIFY
     type_time:    int = mt5.ORDER_TIME_GTC
     type_filling: int = mt5.ORDER_FILLING_RETURN
 
-    
+
     # ---------- 校验 ----------
     def validate(self) -> None:
         if self.order <= 0:
             raise ValueError(
                 f"order(挂单 ticket) 必须 > 0，当前: {self.order}"
             )
-        
+
         if self.price <= 0:
             raise ValueError(
                 f"修改挂单时 price 必须 > 0，当前: {self.price}"
             )
-        
+
         if self.sl < 0:
-            raise ValueError(f"sl 不能为负")
-        
+            raise ValueError("sl 不能为负")
+
         if self.tp < 0:
-            raise ValueError(f"tp 不能为负")
-        
+            raise ValueError("tp 不能为负")
+
         if self.type_filling not in (
             mt5.ORDER_FILLING_IOC,
             mt5.ORDER_FILLING_FOK,
@@ -716,7 +717,7 @@ class ModifyOrder(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(
                 f"type_filling 必须是 {sorted((mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK, mt5.ORDER_FILLING_RETURN))} 之一"
             )
-        
+
         if self.type_time not in (
             mt5.ORDER_TIME_GTC,
             mt5.ORDER_TIME_DAY,
@@ -726,21 +727,21 @@ class ModifyOrder(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(
                 f"type_time 必须是 {sorted((mt5.ORDER_TIME_GTC, mt5.ORDER_TIME_DAY, mt5.ORDER_TIME_SPECIFIED, mt5.ORDER_TIME_SPECIFIED_DAY))} 之一"
             )
-    
+
     def is_valid(self) -> bool:
         try:
             self.validate()
             return True
         except ValueError:
             return False
-    
+
     # ---------- 转换 ----------
     def to_dict(self) -> dict[str, Any]:
         return msgspec.to_builtins(self)
-    
+
     def to_mt5_request(self) -> dict[str, Any]:
         self.validate()
-        
+
         req: dict[str, Any] = {
             "action":       self.action,
             "order":        self.order,
@@ -753,10 +754,10 @@ class ModifyOrder(msgspec.Struct, frozen=True, gc=False):
             "type_filling": self.type_filling,
         }
         return req
-    
+
     def to_json(self) -> bytes:
         return msgspec.json.encode(self)
-    
+
     @classmethod
     def from_order(
         cls,

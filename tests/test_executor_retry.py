@@ -9,10 +9,10 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import MetaTrader5 as mt5
 import pykka
 import pytest
 
-from mt5_bridge.actors.dispatcher import Dispatcher
 from mt5_bridge.actors.executor import Executor
 from mt5_bridge.configs.bridge import RetryConfig
 from mt5_bridge.contracts.enums import TradeState
@@ -23,8 +23,6 @@ from mt5_bridge.contracts.internal_messages import (
     TradeStateChanged,
 )
 from mt5_bridge.contracts.trade_commands import OpenPosition
-
-import MetaTrader5 as mt5
 
 
 def _wait_for(predicate, *, timeout=2.0, interval=0.01):

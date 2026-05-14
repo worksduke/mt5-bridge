@@ -15,6 +15,7 @@ from mt5_bridge.contracts.ea_messages import (
 )
 from mt5_bridge.contracts.enums import EventType, Side, TradeState
 from mt5_bridge.contracts.output_events import (
+    BarClosed,
     EmergencyTickStale,
     OrderCanceled,
     OrderModified,
@@ -51,6 +52,7 @@ __all__ = [
     "Side",
     "TradeState",
     # output_events
+    "BarClosed",
     "EmergencyTickStale",
     "OrderCanceled",
     "OrderModified",
