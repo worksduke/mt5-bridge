@@ -14,6 +14,62 @@ _`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`._
 
 ---
 
+## [0.3.0] - 2026-05-20
+
+Wire-schema expansion: bridge now recognizes the Cube / MetaCube
+directional-block message family pushed by `CubeAll.mq5` (the new EA build
+that supersedes `Cube.mq5` v6.06). Strictly additive — no existing public
+API removed or changed.
+
+### Added
+
+- **6 new EA wire types** in `contracts/ea_messages.py`:
+  - `Cube`, `HistoryCube`, `HistoryCubeDone`
+  - `MetaCube`, `HistoryMetaCube`, `HistoryMetaCubeDone`
+
+  All follow the existing `msgspec.Struct(tag=..., tag_field="type", frozen=True)`
+  pattern and are added to the `EAMessage` union so `DECODER` picks them up
+  automatically. `dir` ∈ {`UP`, `DOWN`, `RANGE`, `NONE`}; `state` ∈
+  {`FORMING`, `ACTIVE`, `AT_RISK`, `DEAD`}.
+
+- **2 new OutputEvents** in `contracts/output_events.py`:
+  - `CubeClosed`  → `EventType.CUBE_CLOSED = 41`
+  - `MetaCubeClosed` → `EventType.META_CUBE_CLOSED = 42`
+
+  Mirrors the v0.2 `Bar → BarClosed` pattern: dispatcher emits these on
+  every `is_closed=True` Cube/MetaCube (live or history-replay), with an
+  `is_history` flag distinguishing the two. Raw `Cube`/`MetaCube` class
+  subscriptions still receive the full live stream (forming + closed).
+
+- **Dispatcher branches** in `actors/dispatcher.py`:
+  - 4 new `isinstance` branches for `Cube` / `HistoryCube` / `MetaCube` /
+    `HistoryMetaCube`, plus `_emit_cube_closed` / `_emit_meta_cube_closed`
+    private helpers next to the existing `_emit_bar_closed`.
+  - `HistoryCubeDone` / `HistoryMetaCubeDone` fall through to the catch-all
+    broadcast (matching how `HistoryBarDone` / `HistoryTickDone` behave).
+
+- **16 new tests** (7 decoder round-trips + 9 dispatcher fan-out).
+  Total suite is now **109 / 109 passing** (was 93).
+
+### Changed
+
+- Bumped `__version__` to `0.3.0` (single source in
+  `src/mt5_bridge/__init__.py`; `pyproject.toml` reads it dynamically).
+- `README.md` OutputEvent table and CLI quickstart updated with the new
+  `CubeClosed` / `MetaCubeClosed` events.
+- `ea/README.md` rewritten for the new EA (`CubeAll`) and protocol
+  expansion.
+
+### Removed
+
+- `ea/Cube.mq5` (source — author no longer publishes EA source).
+- `ea/Cube.ex5` (old compiled binary — does not push the new cube/meta
+  messages; misleading to leave). The replacement `CubeAll.ex5` will be
+  dropped into `ea/` by the EA author as a follow-up commit after the
+  Python side is verified.
+
+---
+
 ## [0.2.0] - 2026-05-14
 
 Engineering polish + workflow upgrades. Pure additions on top of v0.1.0
@@ -162,6 +218,7 @@ Version comparison links.
 Populate the URLs once a remote (e.g. GitHub) is configured.
 -->
 
-[Unreleased]: https://github.com/worksduke/mt5-bridge/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/worksduke/mt5-bridge/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/worksduke/mt5-bridge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/worksduke/mt5-bridge/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/worksduke/mt5-bridge/releases/tag/v0.1.0

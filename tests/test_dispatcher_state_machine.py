@@ -19,7 +19,11 @@ from mt5_bridge.actors.dispatcher import Dispatcher
 from mt5_bridge.contracts.ea_messages import (
     Account,
     Bar,
+    Cube,
     HistoryBar,
+    HistoryCube,
+    HistoryMetaCube,
+    MetaCube,
     Order,
     Position,
     Tick,
@@ -33,7 +37,9 @@ from mt5_bridge.contracts.ea_messages import (
 from mt5_bridge.contracts.enums import EventType
 from mt5_bridge.contracts.output_events import (
     BarClosed,
+    CubeClosed,
     EmergencyTickStale,
+    MetaCubeClosed,
     OrderModified,
     OrderPlaced,
     PositionModified,
@@ -521,3 +527,166 @@ def test_raw_bar_subscribe_still_works(dispatcher):
 
     _wait_for(lambda: len(raw) == 2)
     assert {b.is_closed for b in raw} == {True, False}
+
+
+# =============================================================================
+# Cube / MetaCube → CubeClosed / MetaCubeClosed (v0.3)
+# =============================================================================
+
+def _cube(symbol="X", role="execution", tf="M5", id_=1, dir_="UP", state="DEAD",
+          is_closed=True, bar_count=4, time_start="2026.05.20 09:00:00",
+          time_end="2026.05.20 09:20:00"):
+    return Cube(symbol=symbol, role=role, tf_period=tf, id=id_, dir=dir_, state=state,
+                bar_count=bar_count, body_high=101.0, body_low=99.0,
+                wick_high=101.5, wick_low=98.5, first_open=99.5, last_close=100.5,
+                bull_volume=80, bear_volume=20, obv_score=0.6, efficiency=0.5,
+                total_volume=100, time_start=time_start, time_end=time_end,
+                is_closed=is_closed)
+
+
+def _hcube(symbol="X", role="execution", tf="M5", id_=1):
+    return HistoryCube(symbol=symbol, role=role, tf_period=tf, id=id_, dir="DOWN",
+                       state="DEAD", bar_count=3, body_high=100.0, body_low=98.0,
+                       wick_high=100.5, wick_low=97.5, first_open=99.8, last_close=98.2,
+                       bull_volume=20, bear_volume=80, obv_score=-0.6, efficiency=0.4,
+                       total_volume=100, time_start="2026.05.20 08:00:00",
+                       time_end="2026.05.20 08:15:00", is_closed=True)
+
+
+def _meta(symbol="X", role="tactical", tf="H1", id_=1, is_closed=True):
+    return MetaCube(symbol=symbol, role=role, tf_period=tf, id=id_, dir="UP",
+                    state="DEAD", cube_count=3, bar_count=12, body_high=110.0,
+                    body_low=100.0, wick_high=111.0, wick_low=99.0, first_open=100.5,
+                    last_close=109.0, bull_volume=300, bear_volume=100, obv_score=0.5,
+                    efficiency=0.85, total_volume=400, first_cube_id=10, last_cube_id=12,
+                    time_start="2026.05.20 03:00:00",
+                    time_end="2026.05.20 06:00:00", is_closed=is_closed)
+
+
+def _hmeta(symbol="X", role="tactical", tf="H1", id_=1):
+    return HistoryMetaCube(symbol=symbol, role=role, tf_period=tf, id=id_, dir="DOWN",
+                           state="DEAD", cube_count=4, bar_count=15, body_high=100.0,
+                           body_low=90.0, wick_high=101.0, wick_low=89.0,
+                           first_open=99.5, last_close=91.0, bull_volume=100,
+                           bear_volume=300, obv_score=-0.5, efficiency=0.8,
+                           total_volume=400, first_cube_id=20, last_cube_id=23,
+                           time_start="2026.05.19 22:00:00",
+                           time_end="2026.05.20 02:00:00", is_closed=True)
+
+
+def test_closed_cube_emits_cube_closed_event(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(CubeClosed, received.append).get()
+
+    dispatcher.tell(_cube(is_closed=True))
+
+    _wait_for(lambda: len(received) == 1)
+    evt = received[0]
+    assert evt.symbol == "X"
+    assert evt.role == "execution"
+    assert evt.tf_period == "M5"
+    assert evt.dir == "UP"
+    assert evt.bar_count == 4
+    assert evt.is_history is False
+    assert evt.type == EventType.CUBE_CLOSED
+
+
+def test_unclosed_cube_does_not_emit_cube_closed(dispatcher):
+    received: list = []
+    raw_cubes: list = []
+    dispatcher.proxy().register_callback(CubeClosed, received.append).get()
+    dispatcher.proxy().register_callback(Cube, raw_cubes.append).get()
+
+    dispatcher.tell(_cube(is_closed=False, state="FORMING"))
+
+    # Raw Cube still passes through; CubeClosed must not fire
+    _wait_for(lambda: len(raw_cubes) == 1)
+    time.sleep(0.05)
+    assert len(received) == 0
+
+
+def test_history_cube_emits_cube_closed_with_is_history_true(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(CubeClosed, received.append).get()
+
+    dispatcher.tell(_hcube())
+
+    _wait_for(lambda: len(received) == 1)
+    assert received[0].is_history is True
+    assert received[0].dir == "DOWN"
+    assert received[0].type == EventType.CUBE_CLOSED
+
+
+def test_cube_closed_subscribe_by_event_type(dispatcher):
+    """Users can subscribe with EventType.CUBE_CLOSED, not just the class."""
+    received: list = []
+    dispatcher.proxy().register_callback(EventType.CUBE_CLOSED, received.append).get()
+
+    dispatcher.tell(_cube(is_closed=True))
+    dispatcher.tell(_hcube())
+
+    _wait_for(lambda: len(received) == 2)
+
+
+def test_raw_cube_subscribe_still_works(dispatcher):
+    """subscribe(Cube, cb) sees both forming AND closed cubes."""
+    raw: list = []
+    dispatcher.proxy().register_callback(Cube, raw.append).get()
+
+    dispatcher.tell(_cube(is_closed=True))
+    dispatcher.tell(_cube(is_closed=False, state="FORMING"))
+
+    _wait_for(lambda: len(raw) == 2)
+    assert {c.is_closed for c in raw} == {True, False}
+
+
+def test_closed_meta_cube_emits_meta_cube_closed_event(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(MetaCubeClosed, received.append).get()
+
+    dispatcher.tell(_meta(is_closed=True))
+
+    _wait_for(lambda: len(received) == 1)
+    evt = received[0]
+    assert evt.cube_count == 3
+    assert evt.first_cube_id == 10
+    assert evt.last_cube_id == 12
+    assert evt.dir == "UP"
+    assert evt.is_history is False
+    assert evt.type == EventType.META_CUBE_CLOSED
+
+
+def test_unclosed_meta_cube_does_not_emit_meta_cube_closed(dispatcher):
+    received: list = []
+    raw_metas: list = []
+    dispatcher.proxy().register_callback(MetaCubeClosed, received.append).get()
+    dispatcher.proxy().register_callback(MetaCube, raw_metas.append).get()
+
+    dispatcher.tell(_meta(is_closed=False))
+
+    _wait_for(lambda: len(raw_metas) == 1)
+    time.sleep(0.05)
+    assert len(received) == 0
+
+
+def test_history_meta_cube_emits_meta_cube_closed_with_is_history_true(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(MetaCubeClosed, received.append).get()
+
+    dispatcher.tell(_hmeta())
+
+    _wait_for(lambda: len(received) == 1)
+    assert received[0].is_history is True
+    assert received[0].dir == "DOWN"
+    assert received[0].last_cube_id == 23
+    assert received[0].type == EventType.META_CUBE_CLOSED
+
+
+def test_meta_cube_closed_subscribe_by_event_type(dispatcher):
+    received: list = []
+    dispatcher.proxy().register_callback(EventType.META_CUBE_CLOSED, received.append).get()
+
+    dispatcher.tell(_meta(is_closed=True))
+    dispatcher.tell(_hmeta())
+
+    _wait_for(lambda: len(received) == 2)

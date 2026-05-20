@@ -26,6 +26,10 @@ class EventType(IntEnum):
     BAR_CLOSED        = 31    # K 线收线（live 收线 + history 回放）
 
 
+    CUBE_CLOSED       = 41    # Cube 收线（live + history 回放）
+    META_CUBE_CLOSED  = 42    # MetaCube 收线（live + history 回放）
+
+
 class TradeState(IntEnum):
     """内部交易订单状态"""
 

@@ -20,8 +20,12 @@ from mt5_bridge.contracts.ea_messages import (
     Account,
     Bar,
     Connected,
+    Cube,
     HistoryBar,
+    HistoryCube,
+    HistoryMetaCube,
     HistoryTick,
+    MetaCube,
     Order,
     Position,
     Tick,
@@ -41,7 +45,9 @@ from mt5_bridge.contracts.enums import EventType
 from mt5_bridge.contracts.internal_messages import TradeStateChanged
 from mt5_bridge.contracts.output_events import (
     BarClosed,
+    CubeClosed,
     EmergencyTickStale,
+    MetaCubeClosed,
     OrderCanceled,
     OrderModified,
     OrderPlaced,
@@ -172,6 +178,32 @@ class Dispatcher(pykka.ThreadingActor):
             self._emit_bar_closed(message, is_history=True)
             return
 
+        if isinstance(message, Cube):
+            # Raw broadcast preserves subscribe(Cube, cb) — both forming and
+            # closed pass through. CubeClosed only fires on finalization so
+            # EventType.CUBE_CLOSED subscribers see exactly one event per cube.
+            self._broadcast(message)
+            if message.is_closed:
+                self._emit_cube_closed(message, is_history=False)
+            return
+
+        if isinstance(message, HistoryCube):
+            # History cubes are always closed (replayed from EA buffer).
+            self._broadcast(message)
+            self._emit_cube_closed(message, is_history=True)
+            return
+
+        if isinstance(message, MetaCube):
+            self._broadcast(message)
+            if message.is_closed:
+                self._emit_meta_cube_closed(message, is_history=False)
+            return
+
+        if isinstance(message, HistoryMetaCube):
+            self._broadcast(message)
+            self._emit_meta_cube_closed(message, is_history=True)
+            return
+
         # *Done markers and anything else: pass through unchanged.
         self._broadcast(message)
 
@@ -260,6 +292,63 @@ class Dispatcher(pykka.ThreadingActor):
             low           = bar.low,
             close         = bar.close,
             volume        = bar.volume,
+            is_history    = is_history,
+            event_time_ms = _now_ms(),
+        ))
+
+    def _emit_cube_closed(self, cube: Cube | HistoryCube, *, is_history: bool) -> None:
+        self._broadcast(CubeClosed(
+            symbol        = cube.symbol,
+            role          = cube.role,
+            tf_period     = cube.tf_period,
+            id            = cube.id,
+            dir           = cube.dir,
+            state         = cube.state,
+            bar_count     = cube.bar_count,
+            body_high     = cube.body_high,
+            body_low      = cube.body_low,
+            wick_high     = cube.wick_high,
+            wick_low      = cube.wick_low,
+            first_open    = cube.first_open,
+            last_close    = cube.last_close,
+            bull_volume   = cube.bull_volume,
+            bear_volume   = cube.bear_volume,
+            obv_score     = cube.obv_score,
+            efficiency    = cube.efficiency,
+            total_volume  = cube.total_volume,
+            time_start    = cube.time_start,
+            time_end      = cube.time_end,
+            is_history    = is_history,
+            event_time_ms = _now_ms(),
+        ))
+
+    def _emit_meta_cube_closed(
+        self, meta: MetaCube | HistoryMetaCube, *, is_history: bool
+    ) -> None:
+        self._broadcast(MetaCubeClosed(
+            symbol        = meta.symbol,
+            role          = meta.role,
+            tf_period     = meta.tf_period,
+            id            = meta.id,
+            dir           = meta.dir,
+            state         = meta.state,
+            cube_count    = meta.cube_count,
+            bar_count     = meta.bar_count,
+            body_high     = meta.body_high,
+            body_low      = meta.body_low,
+            wick_high     = meta.wick_high,
+            wick_low      = meta.wick_low,
+            first_open    = meta.first_open,
+            last_close    = meta.last_close,
+            bull_volume   = meta.bull_volume,
+            bear_volume   = meta.bear_volume,
+            obv_score     = meta.obv_score,
+            efficiency    = meta.efficiency,
+            total_volume  = meta.total_volume,
+            first_cube_id = meta.first_cube_id,
+            last_cube_id  = meta.last_cube_id,
+            time_start    = meta.time_start,
+            time_end      = meta.time_end,
             is_history    = is_history,
             event_time_ms = _now_ms(),
         ))

@@ -158,6 +158,152 @@ class HistoryBarDone(
 
 
 # =============================================================================
+# Cube / MetaCube (CubeAll EA — directional-block engine)
+# =============================================================================
+# A "cube" is a contiguous group of bars sharing the same directional bias
+# (UP / DOWN / RANGE) produced by the EA's in-MQL classification engine. A
+# "meta_cube" composes adjacent cubes whose synthetic open/close also share
+# a bias — i.e. cube-of-cubes. Both are pushed live (forming + closed) and
+# replayed from the EA's in-memory buffer at snapshot time.
+#
+# `dir`   ∈ {"UP", "DOWN", "RANGE", "NONE"}
+# `state` ∈ {"FORMING", "ACTIVE", "AT_RISK", "DEAD"}
+#
+# `is_closed=True` on live `cube` / `meta_cube` marks the bar at which the
+# block was finalized; downstream subscribers wanting a "closed only" stream
+# should subscribe to ``output_events.CubeClosed`` / ``MetaCubeClosed``
+# instead. History replays always set `is_closed=True`.
+class Cube(msgspec.Struct, tag="cube", tag_field="type", frozen=True):
+    symbol:       str
+    role:         str
+    tf_period:    str
+    id:           int
+    dir:          str
+    state:        str
+    bar_count:    int
+    body_high:    float
+    body_low:     float
+    wick_high:    float
+    wick_low:     float
+    first_open:   float
+    last_close:   float
+    bull_volume:  int
+    bear_volume:  int
+    obv_score:    float
+    efficiency:   float
+    total_volume: int
+    time_start:   str
+    time_end:     str
+    is_closed:    bool
+
+
+class HistoryCube(msgspec.Struct, tag="history_cube", tag_field="type", frozen=True):
+    """Same shape as ``Cube`` but flagged as a back-fill record."""
+
+    symbol:       str
+    role:         str
+    tf_period:    str
+    id:           int
+    dir:          str
+    state:        str
+    bar_count:    int
+    body_high:    float
+    body_low:     float
+    wick_high:    float
+    wick_low:     float
+    first_open:   float
+    last_close:   float
+    bull_volume:  int
+    bear_volume:  int
+    obv_score:    float
+    efficiency:   float
+    total_volume: int
+    time_start:   str
+    time_end:     str
+    is_closed:    bool
+
+
+class HistoryCubeDone(
+    msgspec.Struct, tag="history_cube_done", tag_field="type", frozen=True
+):
+    """Tail marker the EA emits when its cube back-fill is complete (per channel)."""
+
+    symbol:    str
+    role:      str
+    tf_period: str
+    count:     int
+
+
+class MetaCube(msgspec.Struct, tag="meta_cube", tag_field="type", frozen=True):
+    symbol:        str
+    role:          str
+    tf_period:     str
+    id:            int
+    dir:           str
+    state:         str
+    cube_count:    int
+    bar_count:     int
+    body_high:     float
+    body_low:      float
+    wick_high:     float
+    wick_low:      float
+    first_open:    float
+    last_close:    float
+    bull_volume:   int
+    bear_volume:   int
+    obv_score:     float
+    efficiency:    float
+    total_volume:  int
+    first_cube_id: int
+    last_cube_id:  int
+    time_start:    str
+    time_end:      str
+    is_closed:     bool
+
+
+class HistoryMetaCube(
+    msgspec.Struct, tag="history_meta_cube", tag_field="type", frozen=True
+):
+    """Same shape as ``MetaCube`` but flagged as a back-fill record."""
+
+    symbol:        str
+    role:          str
+    tf_period:     str
+    id:            int
+    dir:           str
+    state:         str
+    cube_count:    int
+    bar_count:     int
+    body_high:     float
+    body_low:      float
+    wick_high:     float
+    wick_low:      float
+    first_open:    float
+    last_close:    float
+    bull_volume:   int
+    bear_volume:   int
+    obv_score:     float
+    efficiency:    float
+    total_volume:  int
+    first_cube_id: int
+    last_cube_id:  int
+    time_start:    str
+    time_end:      str
+    is_closed:     bool
+
+
+class HistoryMetaCubeDone(
+    msgspec.Struct, tag="history_meta_cube_done", tag_field="type", frozen=True
+):
+    """Tail marker the EA emits when its meta-cube back-fill is complete (per channel)."""
+
+    symbol:    str
+    role:      str
+    tf_period: str
+    count:     int
+
+
+# =============================================================================
 # Account / Position / Order
 # =============================================================================
 class Account(msgspec.Struct, tag="account", tag_field="type", frozen=True):
@@ -269,6 +415,12 @@ EAMessage = (
     | Bar
     | HistoryBar
     | HistoryBarDone
+    | Cube
+    | HistoryCube
+    | HistoryCubeDone
+    | MetaCube
+    | HistoryMetaCube
+    | HistoryMetaCubeDone
     | Account
     | Position
     | Order
@@ -285,11 +437,17 @@ __all__ = [
     "Account",
     "Bar",
     "Connected",
+    "Cube",
     "EAMessage",
     "HistoryBar",
     "HistoryBarDone",
+    "HistoryCube",
+    "HistoryCubeDone",
+    "HistoryMetaCube",
+    "HistoryMetaCubeDone",
     "HistoryTick",
     "HistoryTickDone",
+    "MetaCube",
     "Order",
     "Position",
     "Tick",

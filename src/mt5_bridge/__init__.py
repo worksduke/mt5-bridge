@@ -2,18 +2,24 @@
 
 # Single source of truth for the package version. pyproject.toml reads this
 # via ``[tool.setuptools.dynamic] version = { attr = "mt5_bridge.__version__" }``.
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from mt5_bridge.contracts.ea_messages import (
     DECODER,
     Account,
     Bar,
     Connected,
+    Cube,
     EAMessage,
     HistoryBar,
     HistoryBarDone,
+    HistoryCube,
+    HistoryCubeDone,
+    HistoryMetaCube,
+    HistoryMetaCubeDone,
     HistoryTick,
     HistoryTickDone,
+    MetaCube,
     Order,
     Position,
     Tick,
@@ -21,7 +27,9 @@ from mt5_bridge.contracts.ea_messages import (
 from mt5_bridge.contracts.enums import EventType, Side, TradeState
 from mt5_bridge.contracts.output_events import (
     BarClosed,
+    CubeClosed,
     EmergencyTickStale,
+    MetaCubeClosed,
     OrderCanceled,
     OrderModified,
     OrderPlaced,
@@ -48,11 +56,17 @@ __all__ = [
     "Account",
     "Bar",
     "Connected",
+    "Cube",
     "EAMessage",
     "HistoryBar",
     "HistoryBarDone",
+    "HistoryCube",
+    "HistoryCubeDone",
+    "HistoryMetaCube",
+    "HistoryMetaCubeDone",
     "HistoryTick",
     "HistoryTickDone",
+    "MetaCube",
     "Order",
     "Position",
     "Tick",
@@ -62,7 +76,9 @@ __all__ = [
     "TradeState",
     # output_events
     "BarClosed",
+    "CubeClosed",
     "EmergencyTickStale",
+    "MetaCubeClosed",
     "OrderCanceled",
     "OrderModified",
     "OrderPlaced",

@@ -6,8 +6,8 @@
 [![CI](https://github.com/worksduke/mt5-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/worksduke/mt5-bridge/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Status](https://img.shields.io/badge/status-v0.2.0-orange)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-93%20passed-brightgreen)](#测试)
+[![Status](https://img.shields.io/badge/status-v0.3.0-orange)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-109%20passed-brightgreen)](#测试)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](#)
 
 ## 特点
@@ -29,9 +29,7 @@ mt5-bridge/
 ├── pyproject.toml
 ├── config.example.toml            # 配置模板（账号留空，入仓）
 ├── config.toml                    # 你的运行时配置（gitignored，需手动 cp + 编辑）
-├── ea/                            # MT5 EA 源码 + 编译产物
-│   ├── Cube.mq5
-│   ├── Cube.ex5
+├── ea/                            # MT5 EA 编译产物（CubeAll.ex5 由作者另行提供）
 │   └── README.md
 ├── examples/
 │   ├── run_bridge.py              # 长跑订阅 demo（订阅所有事件类型）
@@ -43,7 +41,7 @@ mt5-bridge/
 │   ├── configs/                   # mt5 / bridge / logging
 │   ├── contracts/                 # ea_messages / output_events / trade_commands / enums
 │   └── infra/                     # mt5_client / scheduler / logging / rpc(可选)
-└── tests/                         # 82 个 pytest 用例
+└── tests/                         # 109 个 pytest 用例
 ```
 
 ## 安装
@@ -73,7 +71,7 @@ cp config.example.toml config.toml
 
 ### 2. 启 EA
 
-详见 [`ea/README.md`](ea/README.md)。要点：把 `Cube.ex5` 拷到 `MQL5/Experts/`，挂图表，`Port` 与 config 对齐，按下 `AutoTrading` 按钮（绿灯）。
+详见 [`ea/README.md`](ea/README.md)。要点：把 `CubeAll.ex5` 拷到 `MQL5/Experts/`，挂图表，`Port` 与 config 对齐，按下 `AutoTrading` 按钮（绿灯）。
 
 ### 3. 跑 bridge
 
@@ -92,6 +90,8 @@ bridge = MT5Bridge("config.toml")
 bridge.subscribe(EventType.POSITION_OPENED, lambda e: print(f"opened {e.ticket}"))
 bridge.subscribe(EventType.POSITION_CLOSED, lambda e: print(f"closed {e.ticket} profit={e.profit}"))
 bridge.subscribe(EventType.BAR_CLOSED, lambda b: print(f"bar closed {b.symbol}/{b.tf_period} C={b.close}"))
+bridge.subscribe(EventType.CUBE_CLOSED, lambda c: print(f"cube closed #{c.id} {c.dir} bars={c.bar_count}"))
+bridge.subscribe(EventType.META_CUBE_CLOSED, lambda m: print(f"meta-cube closed #{m.id} {m.dir} cubes={m.cube_count}"))
 bridge.subscribe(Tick, lambda t: ...)
 
 bridge.start_io()
@@ -147,6 +147,8 @@ while True:
 | `OrderModified`   | `22` ORDER_MODIFIED    | `ticket, symbol, open_price, sl, tp, event_time_ms` |
 | `OrderCanceled`   | `23` ORDER_CANCELED    | `ticket, symbol, order_type, volume, open_price, sl, tp, magic, reason, removed_time_ms, event_time_ms` |
 | `BarClosed`       | `31` BAR_CLOSED        | `symbol, role, tf_period, time, time_msc, open, high, low, close, volume, is_history, event_time_ms` |
+| `CubeClosed`      | `41` CUBE_CLOSED       | `symbol, role, tf_period, id, dir, state, bar_count, body_high/low, wick_high/low, first_open, last_close, bull/bear_volume, obv_score, efficiency, total_volume, time_start/end, is_history, event_time_ms` |
+| `MetaCubeClosed`  | `42` META_CUBE_CLOSED  | 同 `CubeClosed`，外加 `cube_count, first_cube_id, last_cube_id`（无 `bar_count` 之外的 cube 细节字段） |
 | `EmergencyTickStale` | —                   | `symbol, last_tick_time_ms, silence_seconds, detected_at_ms` |
 
 `event_time_ms` 是 bridge 检测时间；`close_time_ms` / `removed_time_ms` 是 broker 端真实成交 / 撤单时间。`reason` ∈ `{canceled, filled, expired, unknown}`。
