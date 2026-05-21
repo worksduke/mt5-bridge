@@ -322,7 +322,7 @@ class Position(msgspec.Struct, tag="position", tag_field="type", frozen=True):
     """An open position on the EA-side account.
 
     ``magic`` and ``comment`` default to 0/"" because older EA builds
-    didn't include them; current Cube.mq5 ``PushPositions`` always
+    didn't include them; current CubeAll.mq5 ``PushPositions`` always
     sends both, but the defaults keep historical recordings parseable.
     """
 

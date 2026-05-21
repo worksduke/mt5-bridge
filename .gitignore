@@ -5,7 +5,7 @@
 # Project-specific:
 #   - config.toml (runtime, contains broker credentials — copy from config.example.toml)
 #   - logs/, *.log (structlog file output)
-#   - Cube.ex5 is intentionally TRACKED (compiled EA distributed with the package)
+#   - CubeAll.ex5 is intentionally TRACKED (compiled EA distributed with the package)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
@@ -171,6 +171,6 @@ logs/
 # ---------------------------------------------------------------------------
 # Project-specific: NOT ignored (explicit allow for clarity)
 # ---------------------------------------------------------------------------
-# ea/Cube.ex5 is intentionally tracked — compiled EA is part of the release
+# ea/CubeAll.ex5 is intentionally tracked — compiled EA is part of the release
 # artifact so users don't need MetaEditor on every install. Do NOT add *.ex5
 # to the ignore list.
