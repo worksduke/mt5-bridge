@@ -6,7 +6,7 @@
 [![CI](https://github.com/worksduke/mt5-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/worksduke/mt5-bridge/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Status](https://img.shields.io/badge/status-v0.3.0-orange)](CHANGELOG.md)
+[![Status](https://img.shields.io/badge/status-v0.3.1-orange)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-109%20passed-brightgreen)](#测试)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](#)
 
@@ -152,6 +152,18 @@ while True:
 | `EmergencyTickStale` | —                   | `symbol, last_tick_time_ms, silence_seconds, detected_at_ms` |
 
 `event_time_ms` 是 bridge 检测时间；`close_time_ms` / `removed_time_ms` 是 broker 端真实成交 / 撤单时间。`reason` ∈ `{canceled, filled, expired, unknown}`。
+
+> 💡 **Cube / MetaCube 实时 vs 收线**：`EventType.CUBE_CLOSED` / `META_CUBE_CLOSED` 只在 cube 收线那一刻 fire 一次。
+> 如果 EA 配置了每 tick 推送 forming cube（CubeAll v1.10+），要拿到完整的 forming → closed 流，
+> 订阅原始 `Cube` / `MetaCube` 类即可（通过 `is_closed` 字段区分两种状态）。
+> 这和 `Bar` / `BarClosed` 是同一套模式：OutputEvent 给"收线"那一帧，原始 class 给完整事件流。
+>
+> ```python
+> from mt5_bridge import Cube
+> bridge.subscribe(Cube, lambda c: print(
+>     f"#{c.id} {c.dir} bars={c.bar_count} "
+>     f"{'closed' if c.is_closed else 'forming'}"))
+> ```
 
 ## 命令 API
 

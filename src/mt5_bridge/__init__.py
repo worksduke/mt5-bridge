@@ -2,7 +2,7 @@
 
 # Single source of truth for the package version. pyproject.toml reads this
 # via ``[tool.setuptools.dynamic] version = { attr = "mt5_bridge.__version__" }``.
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from mt5_bridge.contracts.ea_messages import (
     DECODER,

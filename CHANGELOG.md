@@ -14,6 +14,32 @@ _`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`._
 
 ---
 
+## [0.3.1] - 2026-05-21
+
+Live-test bugfix following v0.3.0. The wire types and dispatcher were
+correct, but the two built-in demos forgot about them — running the CLI
+to verify CubeAll EA showed no cube output.
+
+### Fixed
+
+- `mt5-bridge run` CLI (`src/mt5_bridge/__main__.py`) and
+  `examples/run_bridge.py` were missing `Cube` / `MetaCube` subscribers
+  since v0.3.0. Both now print:
+  - `[CUBE~]` / `[META~]` — live forming-cube stream (raw class subscribe,
+    gated on `is_closed=False`).
+  - `[CUBE✓]` / `[META✓]` — finalization via `EventType.CUBE_CLOSED` /
+    `META_CUBE_CLOSED`, including the closed-only `efficiency` /
+    `obv_score` metrics and the `is_history` flag.
+
+### Changed
+
+- README: added a `Cube` / `MetaCube` 实时 vs 收线 callout under the
+  OutputEvent table clarifying that `bridge.subscribe(Cube, cb)` picks
+  up the live forming stream while `EventType.CUBE_CLOSED` fires once
+  per finalization — mirrors the existing `Bar` / `BarClosed` idiom.
+
+---
+
 ## [0.3.0] - 2026-05-20
 
 Wire-schema expansion: bridge now recognizes the Cube / MetaCube
@@ -218,7 +244,8 @@ Version comparison links.
 Populate the URLs once a remote (e.g. GitHub) is configured.
 -->
 
-[Unreleased]: https://github.com/worksduke/mt5-bridge/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/worksduke/mt5-bridge/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/worksduke/mt5-bridge/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/worksduke/mt5-bridge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/worksduke/mt5-bridge/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/worksduke/mt5-bridge/releases/tag/v0.1.0

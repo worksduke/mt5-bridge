@@ -18,8 +18,12 @@ import time
 from mt5_bridge import (
     Account,
     Connected,
+    Cube,
+    CubeClosed,
     EmergencyTickStale,
     EventType,
+    MetaCube,
+    MetaCubeClosed,
     MT5Bridge,
     OrderCanceled,
     OrderModified,
@@ -72,6 +76,34 @@ def on_order_canceled(e: OrderCanceled) -> None:
           f"reason={e.reason}")
 
 
+def on_cube_forming(c: Cube) -> None:
+    # The CubeClosed OutputEvent below covers finalization; here we only
+    # surface the live forming-cube stream the EA pushes per-tick.
+    if c.is_closed:
+        return
+    print(f"[CUBE~] {c.symbol} {c.role}/{c.tf_period} #{c.id} {c.dir} "
+          f"state={c.state} bars={c.bar_count}")
+
+
+def on_cube_closed(c: CubeClosed) -> None:
+    print(f"[CUBE✓] {c.symbol} {c.role}/{c.tf_period} #{c.id} {c.dir} "
+          f"bars={c.bar_count} eff={c.efficiency:.2f} obv={c.obv_score:+.2f} "
+          f"{'(history)' if c.is_history else '(live)'}")
+
+
+def on_meta_forming(m: MetaCube) -> None:
+    if m.is_closed:
+        return
+    print(f"[META~] {m.symbol} {m.role}/{m.tf_period} #{m.id} {m.dir} "
+          f"state={m.state} cubes={m.cube_count} bars={m.bar_count}")
+
+
+def on_meta_closed(m: MetaCubeClosed) -> None:
+    print(f"[META✓] {m.symbol} {m.role}/{m.tf_period} #{m.id} {m.dir} "
+          f"cubes={m.cube_count} bars={m.bar_count} eff={m.efficiency:.2f} "
+          f"obv={m.obv_score:+.2f} {'(history)' if m.is_history else '(live)'}")
+
+
 def on_emergency(e: EmergencyTickStale) -> None:
     print(
         f"[!!]   TICK STALE on {e.symbol}: silent for {e.silence_seconds:.1f}s "
@@ -91,6 +123,10 @@ def main(config_path: str) -> int:
     bridge.subscribe(EventType.ORDER_PLACED,      on_order_placed)
     bridge.subscribe(EventType.ORDER_MODIFIED,    on_order_modified)
     bridge.subscribe(EventType.ORDER_CANCELED,    on_order_canceled)
+    bridge.subscribe(Cube,                         on_cube_forming)
+    bridge.subscribe(EventType.CUBE_CLOSED,        on_cube_closed)
+    bridge.subscribe(MetaCube,                     on_meta_forming)
+    bridge.subscribe(EventType.META_CUBE_CLOSED,   on_meta_closed)
     bridge.subscribe(EmergencyTickStale, on_emergency)
 
     bridge.start_io()

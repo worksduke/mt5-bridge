@@ -23,8 +23,10 @@ import time
 from mt5_bridge import (
     Account,
     Connected,
+    Cube,
     EmergencyTickStale,
     EventType,
+    MetaCube,
     MT5Bridge,
     Tick,
     __version__,
@@ -53,6 +55,25 @@ def _wire_print_handlers(bridge: MT5Bridge) -> None:
     bridge.subscribe(EventType.BAR_CLOSED, lambda b: print(
         f"[BAR]   {b.symbol} {b.role}/{b.tf_period} O={b.open} H={b.high} "
         f"L={b.low} C={b.close} V={b.volume}"))
+    # Raw Cube / MetaCube — forming-cube stream (every cube-engine tick).
+    # Gated on is_closed=False so the [CUBE~] line doesn't duplicate the
+    # [CUBE✓] line below when the same cube finalizes.
+    bridge.subscribe(Cube, lambda c: c.is_closed or print(
+        f"[CUBE~] {c.symbol} {c.role}/{c.tf_period} #{c.id} {c.dir} "
+        f"state={c.state} bars={c.bar_count} body=[{c.body_low}, {c.body_high}]"))
+    bridge.subscribe(MetaCube, lambda m: m.is_closed or print(
+        f"[META~] {m.symbol} {m.role}/{m.tf_period} #{m.id} {m.dir} "
+        f"state={m.state} cubes={m.cube_count} bars={m.bar_count}"))
+    # Closed cube / meta — fires once per finalization (live OR history
+    # replay). Carries closed-only metrics (efficiency, obv_score).
+    bridge.subscribe(EventType.CUBE_CLOSED, lambda c: print(
+        f"[CUBE✓] {c.symbol} {c.role}/{c.tf_period} #{c.id} {c.dir} "
+        f"bars={c.bar_count} eff={c.efficiency:.2f} obv={c.obv_score:+.2f} "
+        f"{'(history)' if c.is_history else '(live)'}"))
+    bridge.subscribe(EventType.META_CUBE_CLOSED, lambda m: print(
+        f"[META✓] {m.symbol} {m.role}/{m.tf_period} #{m.id} {m.dir} "
+        f"cubes={m.cube_count} bars={m.bar_count} eff={m.efficiency:.2f} "
+        f"obv={m.obv_score:+.2f} {'(history)' if m.is_history else '(live)'}"))
     bridge.subscribe(EmergencyTickStale, lambda e: print(
         f"[!!]    STALE {e.symbol} silent={e.silence_seconds:.1f}s"))
 
